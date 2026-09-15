@@ -35,15 +35,17 @@ const make = (config) => {
 const dump = (el) => {
   const r = el.shadowRoot;
   return {
-    segments: [...r.querySelectorAll(".segment")].map((p) => ({ d: p.getAttribute("d"), stroke: p.getAttribute("stroke") })),
-    needle: r.getElementById("needle").getAttribute("transform"),
+    levels: [...r.querySelectorAll(".level")].map((p) => ({ d: p.getAttribute("d"), stroke: p.getAttribute("stroke") })),
+    needle: r.getElementById("needle").style.transform,
     needleShown: r.getElementById("needle").style.display !== "none",
-    valueArc: r.getElementById("valueArc").getAttribute("d"),
-    arcStroke: r.getElementById("valueArc").getAttribute("stroke"),
+    arcShown: r.getElementById("valueArc").style.display !== "none",
+    arcStroke: r.getElementById("valueArc").style.stroke,
     value: r.getElementById("valueText").textContent,
     name: r.getElementById("name").textContent,
     min: r.getElementById("minLabel").textContent,
     max: r.getElementById("maxLabel").textContent,
+    warning: r.getElementById("warning").hidden ? "" : r.getElementById("warning").textContent,
+    cardHidden: r.getElementById("card").hidden,
   };
 };
 
@@ -74,11 +76,14 @@ const c1 = make(cfgUser);
 let d = dump(c1);
 console.log(JSON.stringify(d, null, 1));
 // min=48, max=65, Segmentgrenze = 48+5 = 53 -> frac 5/17 = 0.294
-check("2 Segmente gezeichnet", d.segments.length === 2, JSON.stringify(d.segments));
-check("Segmentfarben korrekt", d.segments[0].stroke === "lightgrey" && d.segments[1].stroke === "rgb(139, 195, 74)");
-check("Nadel sichtbar", d.needleShown);
-// Wert 62.4 -> frac (62.4-48)/17 = 0.8471 -> 152.47°
-check("Nadelwinkel korrekt", d.needle === "rotate(152.471 50 44)", d.needle);
+// 2 Abschnitte + Kantenglättungskopie des letzten (wie im Original)
+check("3 Bogenpfade gezeichnet", d.levels.length === 3, JSON.stringify(d.levels));
+check("Segmentfarben korrekt", d.levels[0].stroke === "lightgrey" && d.levels[1].stroke === "rgb(139, 195, 74)");
+check("Abschnitte laufen bis zum Bogenende (Original-Verfahren)", d.levels.every((l) => l.d.endsWith("A 40 40 0 0 1 40 0")), JSON.stringify(d.levels));
+check("Erster Abschnitt startet links", d.levels[0].d.startsWith("M -40 0"), d.levels[0].d);
+check("Nadel sichtbar", d.needleShown && !d.arcShown);
+// Wert 62.4 -> (62.4-48)/17 = 0.8471 -> 152.471°
+check("Nadelwinkel korrekt", d.needle === "rotate(152.471deg)", d.needle);
 check("Grenzen beschriftet", d.min === "48" && d.max === "65", d.min + "/" + d.max);
 check("Wert + Einheit", d.value === "62,4 °C", d.value);
 check("Name", d.name === "Kollektor");
@@ -86,10 +91,10 @@ check("Name", d.name === "Kollektor");
 // ---- 2: Pumpe aus -> Segmentgrenze verschiebt sich auf 60 ----
 hass.states["binary_sensor.pumpe"] = st("off");
 c1.hass = { ...hass };
-const segStartOff = dump(c1).segments[1].d;
+const segStartOff = dump(c1).levels[1].d;
 hass.states["binary_sensor.pumpe"] = st("on");
 c1.hass = { ...hass };
-const segStartOn = dump(c1).segments[1].d;
+const segStartOn = dump(c1).levels[1].d;
 check("Segmentgrenze reagiert auf Pumpenzustand", segStartOff !== segStartOn, segStartOff + " vs " + segStartOn);
 
 // ---- 3: JS-Template + dynamische Farbe ----
@@ -104,8 +109,10 @@ const c2 = make({
   ],
 });
 d = dump(c2);
-check("JS-Template max wirkt (65)", d.value === "62,4 °C" && d.segments.length === 2, JSON.stringify(d));
-check("Nadel ausgeblendet, Wertbogen gezeichnet", !d.needleShown && !!d.valueArc, JSON.stringify(d));
+check("JS-Template max wirkt", d.value === "62,4 °C", JSON.stringify(d));
+// Ohne Nadel zeichnet auch das Original keine Farbbänder, sondern färbt den Wertbogen
+check("Ohne Nadel keine Farbbänder", d.levels.length === 0, JSON.stringify(d.levels));
+check("Wertbogen sichtbar, Nadel aus", d.arcShown && !d.needleShown, JSON.stringify(d));
 check("Wertbogen nutzt aktive Segmentfarbe", d.arcStroke === "red", d.arcStroke);
 
 // ---- 4: Jinja-Template ----
@@ -117,17 +124,16 @@ const c3 = make({
 });
 check("Jinja-Template abonniert", subs.length === 1 && subs[0].msg.type === "render_template", JSON.stringify(subs.map(s=>s.msg)));
 subs[0].cb({ result: 48 });
-check("Jinja-Ergebnis angewandt", dump(c3).needle === "rotate(49.846 50 44)", dump(c3).needle);
+check("Jinja-Ergebnis angewandt", dump(c3).needle === "rotate(49.846deg)", dump(c3).needle);
 
 // ---- 5: nicht verfügbar ----
 hass.states["sensor.kollektor"] = st("unavailable", { unit_of_measurement: "°C", friendly_name: "Kollektor" });
 c1.hass = { ...hass };
 d = dump(c1);
-check("Unavailable zeigt Platzhalter", d.value === "—" && d.needle === "rotate(0 50 44)", JSON.stringify(d));
-check("unavailable-Attribut gesetzt", c1.hasAttribute("unavailable"));
+check("Unavailable zeigt Warnung statt Zeiger (wie im Original)", d.cardHidden && /nicht verf/i.test(d.warning), JSON.stringify(d));
 hass.states["sensor.kollektor"] = st(62.4, { unit_of_measurement: "°C", friendly_name: "Kollektor" });
 c1.hass = { ...hass };
-check("Erholung nach unavailable", dump(c1).value === "62,4 °C");
+check("Erholung nach unavailable", dump(c1).value === "62,4 °C" && !dump(c1).cardHidden);
 
 // ---- 6: fehlende Entity / Fehlkonfiguration ----
 try { make({ needle: true }); check("Fehler ohne entity", false); }
@@ -138,7 +144,7 @@ catch (e) { check("Fehler bei falschem segments-Typ", /segments/.test(e.message)
 // ---- 7: more-info Event ----
 let evt = null;
 w.document.body.addEventListener("hass-more-info", (e) => (evt = e.detail));
-c1.shadowRoot.getElementById("container").dispatchEvent(new w.MouseEvent("click", { bubbles: true, composed: true }));
+c1.shadowRoot.getElementById("card").dispatchEvent(new w.MouseEvent("click", { bubbles: true, composed: true }));
 check("Tap löst more-info aus", evt && evt.entityId === "sensor.kollektor", JSON.stringify(evt));
 
 console.log(fails ? `\n${fails} Test(s) fehlgeschlagen` : "\nAlle Tests bestanden");

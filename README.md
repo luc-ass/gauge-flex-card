@@ -133,7 +133,7 @@ Werte (Skalenanfang, Skalenende, Schwelle) und das passende YAML.
 | `min` | *dynamisch* | `0` | Untergrenze |
 | `max` | *dynamisch* | `100` | Obergrenze |
 | `needle` | bool | `false` | Nadel-Modus (sonst füllender Wertbogen) |
-| `segments` | Liste | – | Farbabschnitte, je mit `from` (*dynamisch*), optional `to` (*dynamisch*) und `color` (*dynamisch*) |
+| `segments` | Liste | – | Farbabschnitte, je mit `from` (*dynamisch*), optional `to` (*dynamisch*), `color` (*dynamisch*) und `label` (*dynamisch*) |
 | `show_limits` | bool | `false` | Min-/Max-Werte an den Bogenenden einblenden |
 | `precision` | number | – | Nachkommastellen des Messwerts |
 | `limits_precision` | number | `0` | Nachkommastellen der Min-/Max-Beschriftung |
@@ -141,6 +141,36 @@ Werte (Skalenanfang, Skalenende, Schwelle) und das passende YAML.
 
 Segmente werden automatisch nach `from` sortiert; ein Segment reicht bis zum `from` des
 nächsten bzw. bis `max`. Bereiche außerhalb von `min`/`max` werden abgeschnitten.
+
+Das Verhalten der Segmente entspricht dem Original:
+
+* **mit `needle: true`** werden sie als Farbbänder auf dem Bogen gezeichnet
+* **ohne `needle`** zeichnet auch das Original keine Bänder – dann bestimmt der Abschnitt,
+  in dem der Wert liegt, die Farbe des gefüllten Wertbogens
+* beginnt der erste Abschnitt oberhalb von `min`, füllt `var(--info-color)` den Anfang
+* `label` ersetzt im Nadelmodus den Zahlenwert durch einen Text, solange der Wert im
+  Abschnitt liegt
+
+## Verhältnis zum Original
+
+Die Darstellung ist aus `src/components/ha-gauge.ts` des HA-Frontends übernommen und stimmt
+bis auf die Geometrie überein: `viewBox="-50 -50 100 55"`, Bogenradius 40 um den Ursprung,
+Strichstärke 12, `stroke-linecap: butt`, die gefüllte Tropfenform der Nadel, das
+aufsteigende Übereinandermalen der Abschnitte samt 0,5°-Kantenglättung am rechten Ende,
+der per `getBBox()` automatisch skalierte Wert im Bogen und die 1-Sekunden-Übergänge von
+Nadel und Wertbogen. Auch das Verhalten ist übernommen: nicht gefundene, nicht verfügbare
+oder nicht numerische Entities zeigen eine Warnung statt eines Zeigers, und die Zahl wird
+über `hass.formatEntityState()` formatiert, respektiert also die in Home Assistant
+eingestellte Anzeigegenauigkeit.
+
+Bewusste Abweichungen:
+
+| Abweichung | Grund |
+|---|---|
+| `min`, `max`, `segments` dürfen dynamisch sein | der eigentliche Zweck dieser Karte |
+| `show_limits` beschriftet die Skalenenden | bei mitwandernden Grenzen sieht man sonst nicht, worauf sich die Nadel bezieht |
+| Die Breite wird zusätzlich durch die Kachelhöhe begrenzt | das Original skaliert nur über die Breite und wird in `rows: 2` abgeschnitten |
+| `precision`/`unit` überschreiben die HA-Formatierung | nur wenn gesetzt |
 
 ## Dynamische Werte
 

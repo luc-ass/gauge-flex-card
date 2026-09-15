@@ -19,7 +19,7 @@
  * Lizenz: MIT
  */
 
-const CARD_VERSION = "1.1.0";
+const CARD_VERSION = "1.2.0";
 
 console.info(
   `%c GAUGE-FLEX-CARD %c ${CARD_VERSION} `,
@@ -28,27 +28,36 @@ console.info(
 );
 
 /* --------------------------------------------------------------------------
- * Geometrie des Zeigers (SVG-Benutzereinheiten, viewBox 0 0 100 53)
+ * Geometrie – identisch zu src/components/ha-gauge.ts im HA-Frontend:
+ * viewBox "-50 -50 100 55", Bogenradius 40 um den Ursprung, Strichstärke 12,
+ * Winkel 0° = links, 180° = rechts.
  * ----------------------------------------------------------------------- */
-const CX = 50;
-const CY = 44;
-const R = 34;
-const STROKE = 12;
+const ARC_R = 40;
+const ARC_LENGTH = Math.PI * ARC_R;
+const BASE_ARC = "M -40 0 A 40 40 0 0 1 40 0";
+const NEEDLE_PATH = "M -34,-3 L -40,-1 A 1,1,0,0,0,-40,1 L -34,3 A 2,2,0,0,0,-34,-3 Z";
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const escapeHtml = (v) =>
   String(v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
-const polar = (frac) => {
-  const a = Math.PI * (1 - clamp(frac, 0, 1));
-  return [r3(CX + R * Math.cos(a)), r3(CY - R * Math.sin(a))];
+const getAngle = (value, min, max) => {
+  const span = max - min;
+  if (!(span > 0)) return 0;
+  return clamp((value - min) / span, 0, 1) * 180;
 };
 
-const arcPath = (f1, f2) => {
-  const [x1, y1] = polar(f1);
-  const [x2, y2] = polar(f2);
-  return `M ${x1} ${y1} A ${R} ${R} 0 0 1 ${x2} ${y2}`;
+const anglePoint = (angle) => {
+  const rad = (angle * Math.PI) / 180;
+  return [r3(-ARC_R * Math.cos(rad)), r3(-ARC_R * Math.sin(rad))];
+};
+
+/** Bogen vom übergebenen Winkel bis zum rechten Ende – wie im Original werden
+ *  die Abschnitte aufsteigend übereinandergemalt, das vermeidet Nahtkanten. */
+const levelArc = (angle) => {
+  const [x, y] = anglePoint(angle);
+  return `M ${x} ${y} A ${ARC_R} ${ARC_R} 0 0 1 ${ARC_R} 0`;
 };
 
 /* --------------------------------------------------------------------------
@@ -87,78 +96,89 @@ const collectTemplates = (obj, out) => {
 const STYLE = `
   :host { display: block; }
   ha-card {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
     height: 100%;
-    box-sizing: border-box;
-    padding: 12px 8px 8px;
     overflow: hidden;
-  }
-  .container {
+    padding: var(--ha-space-3, 12px);
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
+    flex-direction: column;
+    box-sizing: border-box;
+  }
+  ha-card.action { cursor: pointer; }
+  ha-card:focus { outline: none; }
+  .gauge-wrap {
+    position: relative;
+    display: block;
     width: 100%;
-    max-width: 200px;
-    height: 100%;
-    min-height: 0;
-    cursor: pointer;
+    max-width: 250px;
   }
-  .container.no-action { cursor: default; }
-  svg { display: block; width: 100%; overflow: visible; }
-  /* schrumpft mit, wenn die Kachel niedriger ist als die Eigenhöhe (z. B. rows: 2) */
-  svg.gauge { flex: 0 1 auto; min-height: 0; }
-  svg.text { flex: 0 0 auto; max-height: 26px; margin-top: -2px; }
-  .name { flex: 0 0 auto; }
-  .dial {
+  svg.gauge { display: block; width: 100%; }
+  .levels-base {
     fill: none;
-    stroke: var(--gauge-flex-dial-color, var(--divider-color, #e0e0e0));
-    stroke-width: ${STROKE};
+    stroke: var(--primary-background-color, #e8e8e8);
+    stroke-width: 12;
+    stroke-linecap: butt;
   }
-  .segment { fill: none; stroke-width: ${STROKE}; }
-  .value-arc {
+  .level {
     fill: none;
-    stroke-width: ${STROKE};
-    stroke: var(--info-color, var(--primary-color));
+    stroke-width: 12;
+    stroke-linecap: butt;
+  }
+  .value {
+    fill: none;
+    stroke-width: 12;
+    stroke: var(--gauge-flex-color, var(--info-color));
+    stroke-linecap: butt;
+    transition: stroke-dashoffset 1s ease 0s;
   }
   .needle {
-    stroke: var(--gauge-flex-needle-color, var(--primary-text-color));
-    stroke-width: 3.5;
+    fill: var(--primary-text-color);
+    stroke: var(--card-background-color);
+    stroke-width: 1;
     stroke-linecap: round;
+    transform-origin: 0 0;
+    transition: all 1s ease 0s;
   }
   .limit {
     fill: var(--secondary-text-color);
-    font-size: 6px;
-    font-family: var(--paper-font-body1_-_font-family, inherit);
+    font-size: 7px;
+    font-family: inherit;
+  }
+  .text {
+    position: absolute;
+    max-height: 40%;
+    max-width: 55%;
+    left: 50%;
+    bottom: 10%;
+    transform: translate(-50%, 0%);
   }
   .value-text {
+    font-size: var(--ha-font-size-l, 18px);
     fill: var(--primary-text-color);
-    font-size: 16px;
-    font-weight: 500;
-    font-family: var(--paper-font-body1_-_font-family, inherit);
+    direction: ltr;
   }
-  .unit { font-size: 11px; }
-  .name {
+  .title {
     width: 100%;
-    margin-top: 2px;
+    font-size: var(--ha-font-size-m, 14px);
+    line-height: var(--ha-line-height-expanded, 1.6);
+    margin: 0;
     text-align: center;
-    color: var(--secondary-text-color);
-    font-size: var(--gauge-flex-name-font-size, 14px);
-    line-height: 1.2;
-    white-space: nowrap;
+    box-sizing: border-box;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: none;
+    color: var(--primary-text-color);
   }
-  :host([unavailable]) .value-text { fill: var(--disabled-text-color, #9e9e9e); }
-  :host([unavailable]) .needle { stroke: var(--disabled-text-color, #9e9e9e); }
-  .warn {
+  .warning {
+    display: block;
     padding: 8px;
-    color: var(--error-color, #db4437);
-    font-size: 13px;
-    text-align: center;
+    color: var(--warning-color, #ffa600);
+    font-size: 14px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .needle, .value { transition: none; }
   }
 `;
 
@@ -239,14 +259,19 @@ class GaugeFlexCard extends HTMLElement {
 
   connectedCallback() {
     if (this._hass && !this._subscribed) this._subscribe();
+    if (this._el) this._observeSize();
   }
 
   disconnectedCallback() {
     this._unsubscribe();
+    if (this._ro) {
+      this._ro.disconnect();
+      this._ro = undefined;
+    }
   }
 
   getCardSize() {
-    return 2;
+    return 4;
   }
 
   getGridOptions() {
@@ -409,43 +434,55 @@ class GaugeFlexCard extends HTMLElement {
   _build() {
     this.shadowRoot.innerHTML = `
       <style>${STYLE}</style>
-      <ha-card>
-        <div class="container" id="container">
-          <svg class="gauge" viewBox="0 0 100 53" preserveAspectRatio="xMidYMid meet">
-            <path class="dial" id="dial" d="${arcPath(0, 1)}"></path>
-            <g id="segments"></g>
-            <path class="value-arc" id="valueArc"></path>
-            <line class="needle" id="needle"
-                  x1="${r3(CX - R - STROKE / 2 - 1.5)}" y1="${CY}"
-                  x2="${r3(CX - R + STROKE / 2 + 1.5)}" y2="${CY}"></line>
-            <text class="limit" id="minLabel" x="10" y="52" text-anchor="middle"></text>
-            <text class="limit" id="maxLabel" x="90" y="52" text-anchor="middle"></text>
+      <div class="warning" id="warning" hidden></div>
+      <ha-card id="card">
+        <div class="gauge-wrap" id="wrap">
+          <svg viewBox="-50 -50 100 55" class="gauge" id="gauge">
+            <path class="levels-base" d="${BASE_ARC}"></path>
+            <g id="levels"></g>
+            <path class="value" id="valueArc" d="${BASE_ARC}"
+                  stroke-dasharray="${r3(ARC_LENGTH)}"
+                  style="stroke-dashoffset: ${r3(ARC_LENGTH)}"></path>
+            <path class="needle" id="needle" d="${NEEDLE_PATH}"></path>
+            <text class="limit" id="minLabel" x="-33" y="-2" text-anchor="start"></text>
+            <text class="limit" id="maxLabel" x="33" y="-2" text-anchor="end"></text>
           </svg>
-          <svg class="text" viewBox="0 0 100 20" preserveAspectRatio="xMidYMid meet">
-            <text class="value-text" id="valueText" x="50" y="16" text-anchor="middle"></text>
+          <svg class="text" id="textSvg">
+            <text class="value-text" id="valueText" x="0" y="-5"
+                  dominant-baseline="middle" text-anchor="middle"></text>
           </svg>
-          <div class="name" id="name"></div>
         </div>
+        <p class="title" id="name"></p>
       </ha-card>
     `;
 
     const $ = (id) => this.shadowRoot.getElementById(id);
     this._el = {
-      card: this.shadowRoot.querySelector("ha-card"),
-      container: $("container"),
-      segments: $("segments"),
+      warning: $("warning"),
+      card: $("card"),
+      wrap: $("wrap"),
+      levels: $("levels"),
       valueArc: $("valueArc"),
       needle: $("needle"),
       minLabel: $("minLabel"),
       maxLabel: $("maxLabel"),
+      textSvg: $("textSvg"),
       valueText: $("valueText"),
       name: $("name"),
     };
+    this._first = true;
 
-    this._el.container.addEventListener("click", (ev) => {
+    this._el.card.addEventListener("click", (ev) => {
       ev.stopPropagation();
       this._handleTap();
     });
+    this._el.card.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter" || ev.key === " ") {
+        ev.preventDefault();
+        this._handleTap();
+      }
+    });
+    this._observeSize();
   }
 
   _handleTap() {
@@ -477,6 +514,46 @@ class GaugeFlexCard extends HTMLElement {
     }
   }
 
+  /* ---------------- Größenanpassung ---------------- */
+
+  _observeSize() {
+    if (this._ro || typeof ResizeObserver === "undefined") return;
+    this._ro = new ResizeObserver(() => {
+      this._fitGauge();
+      this._rescaleText();
+    });
+    this._ro.observe(this._el.card);
+  }
+
+  /**
+   * Das Original skaliert nur über die Breite und wird in niedrigen Kacheln
+   * abgeschnitten. Hier begrenzt die verfügbare Höhe zusätzlich die Breite –
+   * bei genug Platz ist das Ergebnis identisch zum Original.
+   */
+  _fitGauge() {
+    const { card, wrap, name } = this._el || {};
+    if (!card || !wrap || !card.clientHeight) return;
+    const cs = getComputedStyle(card);
+    const pad = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+    const avail = card.clientHeight - pad - (name.offsetHeight || 0);
+    if (avail > 0) wrap.style.maxWidth = `min(250px, ${Math.max(60, Math.floor(avail / 0.55))}px)`;
+  }
+
+  /** viewBox der Text-SVG auf die Textausdehnung setzen – wie _rescaleSvg im Original. */
+  _rescaleText() {
+    const t = this._el && this._el.valueText;
+    const svg = this._el && this._el.textSvg;
+    if (!t || !svg || !this.isConnected || typeof t.getBBox !== "function") return;
+    let box;
+    try {
+      box = t.getBBox();
+    } catch (e) {
+      return;
+    }
+    if (!box || !box.width || !box.height) return;
+    svg.setAttribute("viewBox", `${box.x} ${box.y} ${box.width} ${box.height}`);
+  }
+
   /* ---------------- Rendern ---------------- */
 
   _formatNumber(n, precision) {
@@ -491,18 +568,56 @@ class GaugeFlexCard extends HTMLElement {
     }
   }
 
+  _localize(key, fallback, params) {
+    try {
+      const t = this._hass.localize(key, params);
+      if (t) return t;
+    } catch (e) {
+      /* ignorieren */
+    }
+    return fallback;
+  }
+
+  _showWarning(text) {
+    this._el.warning.textContent = text;
+    this._el.warning.hidden = false;
+    this._el.card.hidden = true;
+    this._sig = "warn:" + text;
+  }
+
   _render() {
     if (!this._hass || !this._config || !this._el) return;
     const cfg = this._config;
+    const el = this._el;
 
     this._entityState = cfg.entity ? this._hass.states[cfg.entity] : undefined;
+
+    /* --- Fehlerfälle wie im Original: Warnung statt Zeiger --- */
+    if (cfg.value === undefined) {
+      if (!this._entityState) {
+        this._showWarning(
+          this._localize("ui.panel.lovelace.warning.entity_not_found", `Entity nicht gefunden: ${cfg.entity}`, {
+            entity: cfg.entity,
+          })
+        );
+        return;
+      }
+      if (this._entityState.state === "unavailable") {
+        this._showWarning(
+          this._localize("ui.panel.lovelace.warning.entity_unavailable", `Entity nicht verfügbar: ${cfg.entity}`, {
+            entity: cfg.entity,
+          })
+        );
+        return;
+      }
+    }
 
     /* --- Messwert --- */
     let rawValue;
     if (cfg.value !== undefined) {
       this._rawValue = undefined;
       rawValue = this._resolveRaw(cfg.value);
-    } else if (this._entityState) {
+    } else {
       rawValue =
         cfg.attribute !== undefined
           ? this._entityState.attributes[cfg.attribute]
@@ -510,110 +625,181 @@ class GaugeFlexCard extends HTMLElement {
       this._rawValue = toNumber(rawValue);
     }
     const value = toNumber(rawValue);
-    const unavailable =
-      value === undefined ||
-      (!this._entityState && cfg.value === undefined) ||
-      (typeof rawValue === "string" && UNAVAILABLE.includes(rawValue.toLowerCase()));
+
+    if (value === undefined) {
+      this._showWarning(
+        cfg.attribute !== undefined
+          ? this._localize(
+              "ui.panel.lovelace.warning.attribute_not_numeric",
+              `Attribut ist nicht numerisch: ${cfg.attribute}`,
+              { entity: cfg.entity, attribute: cfg.attribute }
+            )
+          : this._localize(
+              "ui.panel.lovelace.warning.entity_non_numeric",
+              `Entity ist nicht numerisch: ${cfg.entity}`,
+              { entity: cfg.entity }
+            )
+      );
+      return;
+    }
+
+    el.warning.hidden = true;
+    el.card.hidden = false;
 
     /* --- Grenzen --- */
     let min = this._resolveNumber(cfg.min, 0);
     let max = this._resolveNumber(cfg.max, 100);
     if (!(max > min)) max = min + 1;
 
-    /* --- Segmente --- */
+    /* --- Abschnitte --- */
     const segments = (cfg.segments || [])
       .map((s) => {
         if (s === null || typeof s !== "object") return null;
         const from = toNumber(this._resolveRaw(s.from));
         if (from === undefined) return null;
-        const to = toNumber(this._resolveRaw(s.to));
         const color = this._resolveRaw(s.color);
+        const label = s.label === undefined ? undefined : this._resolveRaw(s.label);
         return {
           from,
-          to,
+          to: toNumber(this._resolveRaw(s.to)),
           color: typeof color === "string" && color ? color : "var(--info-color)",
+          label: label === undefined || label === null ? undefined : String(label),
         };
       })
       .filter(Boolean)
       .sort((a, b) => a.from - b.from);
 
-    const bands = [];
-    segments.forEach((seg, i) => {
-      const next = segments[i + 1];
-      const end = seg.to !== undefined ? seg.to : next ? next.from : max;
-      const s = clamp(seg.from, min, max);
-      const e = clamp(end, min, max);
-      if (e > s) bands.push({ from: s, to: e, color: seg.color });
-    });
-
-    const frac = unavailable ? 0 : clamp((value - min) / (max - min), 0, 1);
-
-    /* aktive Segmentfarbe (für die Wertbogen-Darstellung ohne Nadel) */
-    let activeColor = null;
-    for (const seg of segments) {
-      if (!unavailable && value >= seg.from) activeColor = seg.color;
+    /* Wie im Original: fehlt ein Abschnitt am Skalenanfang, wird er mit
+       --info-color aufgefüllt. */
+    const levels = segments.length ? [...segments] : [];
+    if (levels.length && levels[0].from > min) {
+      levels.unshift({ from: min, color: "var(--info-color)" });
     }
 
-    /* --- Signatur: nur bei echten Änderungen das DOM anfassen --- */
-    const unit =
-      cfg.unit !== undefined
-        ? this._resolveRaw(cfg.unit)
-        : this._entityState?.attributes?.unit_of_measurement || "";
+    const angle = getAngle(value, min, max);
+
+    /* aktiver Abschnitt (Farbe des Wertbogens bzw. Beschriftung) */
+    let active = null;
+    for (const seg of levels) {
+      if (value >= seg.from) active = seg;
+    }
+    const segmentLabel = cfg.needle && active && active.label ? active.label : "";
+
+    /* --- Beschriftung --- */
+    let valueText;
+    let label = "";
+    if (segmentLabel) {
+      valueText = segmentLabel;
+    } else if (cfg.unit !== undefined) {
+      const unit = this._resolveRaw(cfg.unit);
+      label = unit === undefined || unit === null ? "" : String(unit);
+      valueText = this._formatNumber(value, cfg.precision);
+    } else if (
+      cfg.value === undefined &&
+      cfg.attribute === undefined &&
+      cfg.precision === undefined &&
+      typeof this._hass.formatEntityState === "function"
+    ) {
+      // gleiche Formatierung wie das Original (Anzeigegenauigkeit + Einheit)
+      try {
+        valueText = this._hass.formatEntityState(this._entityState);
+      } catch (e) {
+        valueText = this._formatNumber(value, cfg.precision);
+      }
+    } else {
+      label = (this._entityState && this._entityState.attributes.unit_of_measurement) || "";
+      valueText = this._formatNumber(value, cfg.precision);
+    }
+    const fullText = label ? `${valueText} ${label}` : String(valueText);
+
     const name =
       cfg.name !== undefined
-        ? this._resolveRaw(cfg.name)
-        : this._entityState?.attributes?.friendly_name || "";
+        ? String(this._resolveRaw(cfg.name) ?? "")
+        : this._entityState
+          ? this._entityState.attributes.friendly_name || ""
+          : "";
 
+    /* --- Signatur --- */
     const sig = JSON.stringify([
-      unavailable, value, min, max, frac, bands, activeColor, unit, name,
-      cfg.needle, cfg.show_limits, cfg.precision, cfg.limits_precision,
+      value, min, max, angle, levels, active && active.color, fullText, name,
+      !!cfg.needle, !!cfg.show_limits, cfg.limits_precision,
     ]);
     if (sig === this._sig) return;
+    const first = this._first;
     this._sig = sig;
+    this._first = false;
 
-    /* --- Zeichnen --- */
-    const el = this._el;
-    this.toggleAttribute("unavailable", unavailable);
-
-    el.segments.innerHTML = bands
-      .map((b) => {
-        const f1 = (b.from - min) / (max - min);
-        const f2 = (b.to - min) / (max - min);
-        return `<path class="segment" d="${arcPath(f1, f2)}" stroke="${String(b.color).replace(
-          /"/g,
-          "'"
+    /* --- Farbabschnitte: nur im Nadelmodus, aufsteigend übereinander --- */
+    if (cfg.needle && levels.length) {
+      const dial = "var(--primary-background-color, #e8e8e8)";
+      let markup = "";
+      levels.forEach((seg, i) => {
+        const next = levels[i + 1];
+        const start = clamp(seg.from, min, max);
+        markup += `<path class="level" stroke="${escapeHtml(seg.color).replace(/"/g, "'")}" d="${levelArc(
+          getAngle(start, min, max)
         )}"></path>`;
-      })
-      .join("");
-
-    if (cfg.needle) {
-      el.valueArc.setAttribute("d", "");
-      el.needle.style.display = "";
-      el.needle.setAttribute("transform", `rotate(${r3(frac * 180)} ${CX} ${CY})`);
+        const nextStart = next ? next.from : max;
+        if (seg.to !== undefined && seg.to < nextStart) {
+          markup += `<path class="level" stroke="${dial}" d="${levelArc(
+            getAngle(clamp(seg.to, min, max), min, max)
+          )}"></path>`;
+        } else if (!next) {
+          // Kantenglättung am rechten Ende – identisch zum Original
+          markup += `<path class="level" stroke="${escapeHtml(seg.color).replace(
+            /"/g,
+            "'"
+          )}" d="${levelArc(180 - 0.5)}"></path>`;
+        }
+      });
+      el.levels.innerHTML = markup;
     } else {
-      el.needle.style.display = "none";
-      el.valueArc.setAttribute("d", unavailable || frac <= 0 ? "" : arcPath(0, frac));
-      el.valueArc.setAttribute("stroke", activeColor || "var(--info-color, var(--primary-color))");
+      el.levels.innerHTML = "";
     }
 
-    const showLimits = !!cfg.show_limits;
+    /* --- Nadel oder Wertbogen --- */
+    if (cfg.needle) {
+      el.needle.style.display = "";
+      el.needle.style.transform = `rotate(${r3(angle)}deg)`;
+      el.valueArc.style.display = "none";
+    } else {
+      el.needle.style.display = "none";
+      el.valueArc.style.display = "";
+      el.valueArc.style.stroke = active ? active.color : "var(--info-color)";
+      const offset = r3(ARC_LENGTH * (1 - angle / 180));
+      if (first) {
+        el.valueArc.style.strokeDashoffset = String(r3(ARC_LENGTH));
+        requestAnimationFrame(() => {
+          if (el.valueArc) el.valueArc.style.strokeDashoffset = String(offset);
+        });
+      } else {
+        el.valueArc.style.strokeDashoffset = String(offset);
+      }
+    }
+
+    /* --- optionale Grenzenbeschriftung (Erweiterung, im Original nicht vorhanden) --- */
     const lp = cfg.limits_precision !== undefined ? cfg.limits_precision : 0;
-    el.minLabel.textContent = showLimits ? this._formatNumber(min, lp) : "";
-    el.maxLabel.textContent = showLimits ? this._formatNumber(max, lp) : "";
+    el.minLabel.textContent = cfg.show_limits ? this._formatNumber(min, lp) : "";
+    el.maxLabel.textContent = cfg.show_limits ? this._formatNumber(max, lp) : "";
 
-    const valueText = unavailable
-      ? "—"
-      : this._formatNumber(value, cfg.precision);
-    el.valueText.innerHTML = `${escapeHtml(valueText)}${
-      unavailable || !unit ? "" : `<tspan class="unit"> ${escapeHtml(unit)}</tspan>`
-    }`;
-
-    el.name.textContent = name || "";
+    /* --- Text und Name --- */
+    el.valueText.textContent = fullText;
+    el.name.textContent = name;
+    el.name.title = name;
     el.name.style.display = name ? "" : "none";
-    el.container.classList.toggle(
-      "no-action",
-      (cfg.tap_action || {}).action === "none"
-    );
+
+    const hasAction = (cfg.tap_action || {}).action !== "none";
+    el.card.classList.toggle("action", hasAction);
+    if (hasAction) el.card.setAttribute("tabindex", "0");
+    else el.card.removeAttribute("tabindex");
+
+    this._rescaleText();
+    if (typeof requestAnimationFrame === "function") {
+      requestAnimationFrame(() => {
+        this._fitGauge();
+        this._rescaleText();
+      });
+    }
   }
 }
 
