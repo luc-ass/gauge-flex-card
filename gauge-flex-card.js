@@ -19,7 +19,7 @@
  * Lizenz: MIT
  */
 
-const CARD_VERSION = "1.2.2";
+const CARD_VERSION = "1.2.3";
 
 console.info(
   `%c GAUGE-FLEX-CARD %c ${CARD_VERSION} `,
@@ -39,6 +39,17 @@ const GAUGE_MAX_WIDTH = 250;
 const NEEDLE_PATH = "M -34,-3 L -40,-1 A 1,1,0,0,0,-40,1 L -34,3 A 2,2,0,0,0,-34,-3 Z";
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+/** Identisch zu src/common/util/render-status.ts: erst nach dem naechsten
+ *  Frame *und* dem darauffolgenden Task – nur dann wurde der Startzustand
+ *  bereits gezeichnet und die CSS-Transition laeuft wirklich an. */
+const afterNextRender = (cb) => {
+  if (typeof requestAnimationFrame !== "function") {
+    cb();
+    return;
+  }
+  requestAnimationFrame(() => setTimeout(cb, 0));
+};
 const escapeHtml = (v) =>
   String(v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -770,23 +781,34 @@ class GaugeFlexCard extends HTMLElement {
       el.levels.innerHTML = "";
     }
 
-    /* --- Nadel oder Wertbogen --- */
+    /* --- Nadel oder Wertbogen ---
+       Wie im Original: der erste Frame zeigt den Startzustand (Nadel bei 0°,
+       Bogen leer), danach laufen beide per CSS-Transition auf den Messwert. */
+    this._targetAngle = angle;
+    this._targetOffset = r3(ARC_LENGTH * (1 - angle / 180));
+
     if (cfg.needle) {
       el.needle.style.display = "";
-      el.needle.style.transform = `rotate(${r3(angle)}deg)`;
       el.valueArc.style.display = "none";
+      if (first) {
+        el.needle.style.transform = "rotate(0deg)";
+        afterNextRender(() => {
+          if (this._el) this._el.needle.style.transform = `rotate(${r3(this._targetAngle)}deg)`;
+        });
+      } else {
+        el.needle.style.transform = `rotate(${r3(angle)}deg)`;
+      }
     } else {
       el.needle.style.display = "none";
       el.valueArc.style.display = "";
       el.valueArc.style.stroke = active ? active.color : "var(--info-color)";
-      const offset = r3(ARC_LENGTH * (1 - angle / 180));
       if (first) {
         el.valueArc.style.strokeDashoffset = String(r3(ARC_LENGTH));
-        requestAnimationFrame(() => {
-          if (el.valueArc) el.valueArc.style.strokeDashoffset = String(offset);
+        afterNextRender(() => {
+          if (this._el) this._el.valueArc.style.strokeDashoffset = String(this._targetOffset);
         });
       } else {
-        el.valueArc.style.strokeDashoffset = String(offset);
+        el.valueArc.style.strokeDashoffset = String(this._targetOffset);
       }
     }
 

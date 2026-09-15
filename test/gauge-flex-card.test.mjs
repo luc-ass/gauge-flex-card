@@ -25,6 +25,9 @@ const hass = {
   callService: () => {},
 };
 
+// wartet wie HAs afterNextRender einen Frame plus einen Task ab
+const settle = () => new Promise((r) => w.requestAnimationFrame(() => w.setTimeout(r, 0)));
+
 const make = (config) => {
   const el = w.document.createElement("gauge-flex-card");
   w.document.body.appendChild(el);
@@ -40,6 +43,7 @@ const dump = (el) => {
     needleShown: r.getElementById("needle").style.display !== "none",
     arcShown: r.getElementById("valueArc").style.display !== "none",
     arcStroke: r.getElementById("valueArc").style.stroke,
+    arcOffset: r.getElementById("valueArc").style.strokeDashoffset,
     value: r.getElementById("valueText").textContent,
     name: r.getElementById("name").textContent,
     min: r.getElementById("minLabel").textContent,
@@ -73,6 +77,9 @@ const cfgUser = {
   ],
 };
 const c1 = make(cfgUser);
+// Startzustand vor der Animation
+check("Nadel startet bei 0° (wie im Original)", dump(c1).needle === "rotate(0deg)", dump(c1).needle);
+await settle();
 let d = dump(c1);
 console.log(JSON.stringify(d, null, 1));
 // min=48, max=65, Segmentgrenze = 48+5 = 53 -> frac 5/17 = 0.294
@@ -108,7 +115,10 @@ const c2 = make({
     { from: "${parseFloat(states['sensor.speicher_unten'].state)}", color: "red" },
   ],
 });
+check("Wertbogen startet leer", dump(c2).arcOffset === String(Math.round(Math.PI * 40 * 1000) / 1000), dump(c2).arcOffset);
+await settle();
 d = dump(c2);
+check("Wertbogen laeuft auf den Messwert", parseFloat(dump(c2).arcOffset) < Math.PI * 40, dump(c2).arcOffset);
 check("JS-Template max wirkt", d.value === "62,4 °C", JSON.stringify(d));
 // Ohne Nadel zeichnet auch das Original keine Farbbänder, sondern färbt den Wertbogen
 check("Ohne Nadel keine Farbbänder", d.levels.length === 0, JSON.stringify(d.levels));
@@ -122,8 +132,10 @@ const c3 = make({
   max: 100,
   needle: true,
 });
+await settle();
 check("Jinja-Template abonniert", subs.length === 1 && subs[0].msg.type === "render_template", JSON.stringify(subs.map(s=>s.msg)));
 subs[0].cb({ result: 48 });
+await settle();
 check("Jinja-Ergebnis angewandt", dump(c3).needle === "rotate(49.846deg)", dump(c3).needle);
 
 // ---- 5: nicht verfügbar ----
