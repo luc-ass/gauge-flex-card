@@ -19,7 +19,7 @@
  * Lizenz: MIT
  */
 
-const CARD_VERSION = "1.2.1";
+const CARD_VERSION = "1.2.2";
 
 console.info(
   `%c GAUGE-FLEX-CARD %c ${CARD_VERSION} `,
@@ -99,6 +99,10 @@ const STYLE = `
     display: block;
     height: 100%;
   }
+  /* Autoren-Regeln wie .warning { display: block } oder ha-card { display: flex }
+     schlagen sonst die UA-Regel [hidden] { display: none }: das ausgeblendete
+     Element bliebe im Fluss und schoebe die Karte nach unten. */
+  [hidden] { display: none !important; }
   ha-card {
     height: 100%;
     overflow: hidden;
@@ -178,6 +182,7 @@ const STYLE = `
   .warning {
     display: block;
     padding: 8px;
+    margin: 0;
     color: var(--warning-color, #ffa600);
     font-size: 14px;
   }

@@ -151,6 +151,13 @@ check("Tap löst more-info aus", evt && evt.entityId === "sensor.kollektor", JSO
 const css = c1.shadowRoot.querySelector("style").textContent;
 check("Host nimmt die Kachelhöhe an", /:host\s*\{[^}]*height:\s*100%/.test(css), "height:100% fehlt auf :host");
 check("ha-card füllt den Host", /ha-card\s*\{[^}]*height:\s*100%/.test(css));
+check(
+  "[hidden] wird nicht von eigenen display-Regeln ausgehebelt",
+  /\[hidden\]\s*\{\s*display:\s*none\s*!important/.test(css),
+  "Guard-Regel fehlt – ausgeblendete Elemente belegen sonst Platz"
+);
+check("Warnung im Normalfall ausgeblendet", c1.shadowRoot.getElementById("warning").hidden === true);
+check("Karte im Normalfall sichtbar", c1.shadowRoot.getElementById("card").hidden === false);
 const grid = c1.getGridOptions();
 check("Standardhöhe ist auto wie beim Original", grid.rows === "auto", JSON.stringify(grid));
 check("Mindestgröße gesetzt", grid.min_rows === 2 && grid.min_columns === 3, JSON.stringify(grid));
