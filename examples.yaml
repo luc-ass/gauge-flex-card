@@ -1,0 +1,118 @@
+# ---------------------------------------------------------------------------
+# Beispiele für die gauge-flex-card
+# ---------------------------------------------------------------------------
+
+# 1) Solarkollektor: Grenzen folgen der Speichertemperatur, die grüne Zone
+#    verschiebt sich je nachdem, ob die Kollektorpumpe läuft.
+- type: custom:gauge-flex-card
+  entity: sensor.heizungskeller_auromatic_solar_kollektor
+  name: Kollektor
+  needle: true
+  show_limits: true
+  min: sensor.heizungskeller_auromatic_solar_speicherfuhler_2_unten
+  max:
+    entity: sensor.heizungskeller_auromatic_solar_speicherfuhler_2_unten
+    offset: 17
+  segments:
+    - from: 0
+      color: lightgrey
+    - from:
+        entity: sensor.heizungskeller_auromatic_solar_speicherfuhler_2_unten
+        offset:
+          entity: binary_sensor.heizungskeller_auromatic_solar_kollektorpumpe
+          map:
+            "on": 5
+            "off": 12
+      color: rgb(139, 195, 74)
+  grid_options:
+    columns: 4
+    rows: 2
+
+# 2) Klassische Gauge mit festen Schwellen (Original-Look)
+- type: custom:gauge-flex-card
+  entity: sensor.cpu_auslastung
+  name: CPU
+  min: 0
+  max: 100
+  segments:
+    - from: 0
+      color: var(--info-color)
+    - from: 60
+      color: var(--warning-color)
+    - from: 85
+      color: var(--error-color)
+
+# 3) Grenzen aus input_number-Helfern (im Dashboard per Slider einstellbar)
+- type: custom:gauge-flex-card
+  entity: sensor.wohnzimmer_temperatur
+  name: Wohnzimmer
+  needle: true
+  show_limits: true
+  limits_precision: 1
+  min: input_number.komfort_min
+  max: input_number.komfort_max
+  segments:
+    - from: input_number.komfort_min
+      color: "#4caf50"
+
+# 4) Farbe abhängig vom Zustand einer anderen Entity
+- type: custom:gauge-flex-card
+  entity: sensor.pv_leistung
+  name: PV
+  unit: W
+  min: 0
+  max: sensor.pv_peak_heute
+  segments:
+    - from: 0
+      color:
+        entity: binary_sensor.netzbezug
+        map:
+          "on": "#e57373"
+          "off": "#81c784"
+
+# 5) Jinja-Template für gleitenden Tagesmittelwert als Mitte der Skala
+- type: custom:gauge-flex-card
+  entity: sensor.aussentemperatur
+  name: Außen
+  needle: true
+  show_limits: true
+  min: "{{ state_attr('sensor.aussentemperatur_statistik', 'min') | float(-10) - 2 }}"
+  max: "{{ state_attr('sensor.aussentemperatur_statistik', 'max') | float(30) + 2 }}"
+  segments:
+    - from: "{{ states('sensor.aussentemperatur_statistik') | float(10) }}"
+      color: "#ffb74d"
+
+# 6) Prozentuale Ladung mit berechnetem Messwert (value statt entity-Zustand)
+- type: custom:gauge-flex-card
+  entity: sensor.speicher_ladung_kwh
+  name: Speicher
+  unit: "%"
+  precision: 0
+  min: 0
+  max: 100
+  value:
+    entity: sensor.speicher_ladung_kwh
+    factor: 10          # 10 kWh Kapazität -> Prozent
+    round: 0
+  segments:
+    - from: 0
+      color: "#e57373"
+    - from: 25
+      color: "#ffb74d"
+    - from: 60
+      color: "#81c784"
+
+# 7) JS-Ausdruck (lokal im Browser, wie bei config-template-card)
+- type: custom:gauge-flex-card
+  entity: sensor.heizungskeller_auromatic_solar_kollektor
+  name: Kollektor (JS)
+  needle: true
+  min: "${parseFloat(states['sensor.heizungskeller_auromatic_solar_speicherfuhler_2_unten'].state)}"
+  max: "${parseFloat(states['sensor.heizungskeller_auromatic_solar_speicherfuhler_2_unten'].state) + 17}"
+  segments:
+    - from: 0
+      color: lightgrey
+    - from: >-
+        ${parseFloat(states['sensor.heizungskeller_auromatic_solar_speicherfuhler_2_unten'].state)
+        + (states['binary_sensor.heizungskeller_auromatic_solar_kollektorpumpe'].state === 'on' ? 5 : 12)}
+      color: rgb(139, 195, 74)

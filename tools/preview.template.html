@@ -1,0 +1,699 @@
+<title>Gauge Flex Werkbank</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+  :root {
+    --ground: #e7ebee;
+    --panel: #ffffff;
+    --panel-sunk: #f2f5f7;
+    --ink: #15222c;
+    --ink-soft: #5b6b77;
+    --line: #d3dbe1;
+    --accent: #ab5138;
+    --accent-soft: rgba(171, 81, 56, 0.1);
+    --idle: #7d8b95;
+
+    --dash-ground: #e3e7ea;
+    --ha-primary-text: #212121;
+    --ha-secondary-text: #727272;
+    --ha-card-bg: #ffffff;
+    --ha-divider: #dbdbdb;
+    --ha-disabled: #bdbdbd;
+    --ha-info: #039be5;
+    --ha-primary: #03a9f4;
+
+    --radius: 10px;
+    --shadow: 0 1px 2px rgba(21, 34, 44, 0.06), 0 6px 20px rgba(21, 34, 44, 0.06);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #101820;
+      --panel: #17212a;
+      --panel-sunk: #121b23;
+      --ink: #e4ebf0;
+      --ink-soft: #93a4b1;
+      --line: #27333d;
+      --accent: #d9825f;
+      --accent-soft: rgba(217, 130, 95, 0.14);
+      --idle: #7d8b95;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 22px rgba(0, 0, 0, 0.35);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #101820;
+    --panel: #17212a;
+    --panel-sunk: #121b23;
+    --ink: #e4ebf0;
+    --ink-soft: #93a4b1;
+    --line: #27333d;
+    --accent: #d9825f;
+    --accent-soft: rgba(217, 130, 95, 0.14);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 22px rgba(0, 0, 0, 0.35);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 32px 24px 56px;
+  }
+
+  /* ---------- Kopf ---------- */
+  header { margin-bottom: 28px; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 6px;
+  }
+  h1 {
+    font-size: clamp(28px, 4vw, 38px);
+    font-weight: 600;
+    letter-spacing: -0.022em;
+    line-height: 1.1;
+    margin: 0 0 8px;
+    text-wrap: balance;
+  }
+  .lede {
+    margin: 0;
+    max-width: 62ch;
+    color: var(--ink-soft);
+  }
+
+  /* ---------- Raster ---------- */
+  .cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
+    gap: 20px;
+    align-items: start;
+  }
+  @media (max-width: 880px) {
+    .cols { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+
+  .panel-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--line);
+  }
+  .panel-title {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin: 0;
+  }
+  .panel-note {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--ink-soft);
+  }
+
+  /* ---------- Bühne ---------- */
+  .stage {
+    padding: 22px 18px;
+    background:
+      linear-gradient(0deg, rgba(0, 0, 0, 0.015), rgba(0, 0, 0, 0.015)),
+      var(--panel);
+  }
+  .tiles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    align-items: flex-start;
+  }
+  .tile { flex: 0 0 auto; }
+  .tile-label {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--ink-soft);
+    margin-bottom: 6px;
+    white-space: nowrap;
+  }
+  .ha-surface {
+    background: var(--dash-ground);
+    padding: 10px;
+    border-radius: 8px;
+    --primary-text-color: var(--ha-primary-text);
+    --secondary-text-color: var(--ha-secondary-text);
+    --card-background-color: var(--ha-card-bg);
+    --divider-color: var(--ha-divider);
+    --disabled-text-color: var(--ha-disabled);
+    --info-color: var(--ha-info);
+    --primary-color: var(--ha-primary);
+  }
+  .ha-surface.dark {
+    --dash-ground: #111111;
+    --ha-primary-text: #e1e1e1;
+    --ha-secondary-text: #9b9b9b;
+    --ha-card-bg: #1c1c1c;
+    --ha-divider: #474747;
+    --ha-disabled: #6f6f6f;
+  }
+
+  /* ---------- Ablesewerte ---------- */
+  .readout {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+    gap: 1px;
+    background: var(--line);
+    border-top: 1px solid var(--line);
+  }
+  .cell {
+    background: var(--panel);
+    padding: 12px 14px;
+  }
+  .cell-label {
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 3px;
+  }
+  .cell-value {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 19px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+  .cell-value .u { font-size: 12px; color: var(--ink-soft); margin-left: 2px; }
+  .zone {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: "IBM Plex Sans", sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 2px 9px 2px 7px;
+    border-radius: 999px;
+    background: var(--panel-sunk);
+    border: 1px solid var(--line);
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: 0 0 auto; }
+
+  /* ---------- Bedienpult ---------- */
+  .controls { padding: 6px 18px 18px; }
+  .group + .group { margin-top: 18px; padding-top: 16px; border-top: 1px dashed var(--line); }
+  .group-title {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 14px 0 10px;
+  }
+  .ctl { margin-bottom: 14px; }
+  .ctl-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+  .ctl-name { font-size: 14px; }
+  .ctl-eid {
+    display: block;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 10.5px;
+    color: var(--ink-soft);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 30ch;
+  }
+  .ctl-value {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 15px;
+    font-variant-numeric: tabular-nums;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+  input[type="range"] {
+    width: 100%;
+    accent-color: var(--accent);
+    margin: 0;
+  }
+  .switch-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 12px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--panel-sunk);
+    font-size: 13.5px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .chip input { accent-color: var(--accent); margin: 0; }
+  .chip:hover { border-color: var(--accent); }
+  .chip.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .num-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .num-row label { font-size: 13.5px; }
+  input[type="number"] {
+    width: 82px;
+    padding: 6px 8px;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+    background: var(--panel-sunk);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  /* ---------- YAML ---------- */
+  .yaml-wrap { margin-top: 20px; }
+  .yaml-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--line);
+  }
+  button.copy {
+    font-family: "IBM Plex Sans", sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    padding: 5px 12px;
+    cursor: pointer;
+  }
+  button.copy:hover { background: var(--accent); color: var(--panel); }
+  pre {
+    margin: 0;
+    padding: 16px 18px;
+    overflow-x: auto;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12.5px;
+    line-height: 1.65;
+    color: var(--ink);
+    tab-size: 2;
+  }
+  pre .k { color: var(--accent); }
+  pre .c { color: var(--ink-soft); }
+
+  footer {
+    margin-top: 26px;
+    color: var(--ink-soft);
+    font-size: 13px;
+    max-width: 70ch;
+  }
+  footer code {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12px;
+    background: var(--panel-sunk);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Custom Card · Solarthermie</p>
+    <h1>Gauge Flex Werkbank</h1>
+    <p class="lede">
+      Dieselbe <code>gauge-flex-card</code>, die auch in Home Assistant läuft — hier mit
+      simulierten Sensorwerten. Verschiebe Kollektor- und Speichertemperatur oder schalte die
+      Kollektorpumpe, und beobachte, wie Skalenenden und grüne Ertragszone mitwandern.
+    </p>
+  </header>
+
+  <div class="cols">
+    <section class="panel">
+      <div class="panel-head">
+        <h2 class="panel-title">Vorschau</h2>
+        <span class="panel-note">Kachelgrößen wie im Sections-Dashboard</span>
+      </div>
+      <div class="stage">
+        <div class="tiles">
+          <div class="tile">
+            <div class="tile-label">columns: 4 · rows: 2</div>
+            <div class="ha-surface"><div id="tile-narrow" style="width:214px;height:114px"></div></div>
+          </div>
+          <div class="tile">
+            <div class="tile-label">columns: 6 · rows: 3</div>
+            <div class="ha-surface"><div id="tile-wide" style="width:320px;height:172px"></div></div>
+          </div>
+          <div class="tile">
+            <div class="tile-label">dunkles Theme</div>
+            <div class="ha-surface dark"><div id="tile-dark" style="width:214px;height:114px"></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="readout">
+        <div class="cell">
+          <div class="cell-label">Skala von</div>
+          <div class="cell-value" id="out-min">–<span class="u">°C</span></div>
+        </div>
+        <div class="cell">
+          <div class="cell-label">Skala bis</div>
+          <div class="cell-value" id="out-max">–<span class="u">°C</span></div>
+        </div>
+        <div class="cell">
+          <div class="cell-label">Grün ab</div>
+          <div class="cell-value" id="out-threshold">–<span class="u">°C</span></div>
+        </div>
+        <div class="cell">
+          <div class="cell-label">Zustand</div>
+          <div class="cell-value"><span class="zone" id="out-zone"><span class="dot"></span><span>–</span></span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2 class="panel-title">Bedienpult</h2>
+        <span class="panel-note">Sensorsimulation</span>
+      </div>
+      <div class="controls">
+        <div class="group">
+          <div class="group-title">Messwerte</div>
+
+          <div class="ctl">
+            <div class="ctl-head">
+              <span class="ctl-name">Kollektor
+                <span class="ctl-eid">sensor.…_solar_kollektor</span>
+              </span>
+              <span class="ctl-value" id="lbl-koll">62,4 °C</span>
+            </div>
+            <input type="range" id="in-koll" min="0" max="120" step="0.1" value="62.4"
+                   aria-label="Kollektortemperatur">
+          </div>
+
+          <div class="ctl">
+            <div class="ctl-head">
+              <span class="ctl-name">Speicher unten
+                <span class="ctl-eid">sensor.…_speicherfuhler_2_unten</span>
+              </span>
+              <span class="ctl-value" id="lbl-sp">48,0 °C</span>
+            </div>
+            <input type="range" id="in-sp" min="20" max="85" step="0.1" value="48"
+                   aria-label="Speichertemperatur unten">
+          </div>
+
+          <div class="switch-row">
+            <label class="chip on" id="chip-pumpe">
+              <input type="checkbox" id="in-pumpe" checked>
+              <span>Kollektorpumpe läuft</span>
+            </label>
+            <label class="chip" id="chip-unavail">
+              <input type="checkbox" id="in-unavail">
+              <span>Sensor nicht verfügbar</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="group">
+          <div class="group-title">Kartenkonfiguration</div>
+
+          <div class="num-row">
+            <label for="in-span">Skalenbreite über Speicher (max)</label>
+            <input type="number" id="in-span" value="17" min="2" max="60" step="1">
+          </div>
+          <div class="num-row">
+            <label for="in-on">Grüne Zone ab, Pumpe an (+K)</label>
+            <input type="number" id="in-on" value="5" min="0" max="40" step="1">
+          </div>
+          <div class="num-row">
+            <label for="in-off">Grüne Zone ab, Pumpe aus (+K)</label>
+            <input type="number" id="in-off" value="12" min="0" max="40" step="1">
+          </div>
+
+          <div class="switch-row">
+            <label class="chip on" id="chip-needle">
+              <input type="checkbox" id="in-needle" checked>
+              <span>Nadel</span>
+            </label>
+            <label class="chip on" id="chip-limits">
+              <input type="checkbox" id="in-limits" checked>
+              <span>Grenzen anzeigen</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <section class="panel yaml-wrap">
+    <div class="yaml-head">
+      <h2 class="panel-title">Passende Konfiguration</h2>
+      <button class="copy" id="btn-copy">YAML kopieren</button>
+    </div>
+    <pre id="yaml"></pre>
+  </section>
+
+  <footer>
+    Die Seite führt die unveränderte Kartenquelle aus; nur <code>hass</code> ist simuliert.
+    Jinja-Templates (<code>{{ … }}</code>) rendert in Home Assistant der Server per WebSocket —
+    die sind hier deshalb nicht nachgebildet, Entity-Referenzen und Rechenobjekte dagegen schon.
+  </footer>
+</div>
+
+<script>
+/* --- Ersatz für <ha-card> aus dem Home-Assistant-Frontend --- */
+customElements.define("ha-card", class extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({ mode: "open" }).innerHTML =
+      '<style>:host{display:block;height:100%;box-sizing:border-box;' +
+      'background:var(--card-background-color,#fff);' +
+      'border-radius:var(--ha-card-border-radius,12px);' +
+      'box-shadow:0 1px 2px rgba(0,0,0,.14);}</style><slot></slot>';
+  }
+});
+</script>
+
+<script>
+/* ===== Kartenquelle (aus gauge-flex-card.js eingebettet) ===== */
+<!--__CARD_SOURCE__-->
+</script>
+
+<script>
+(function () {
+  const E = {
+    koll: "sensor.heizungskeller_auromatic_solar_kollektor",
+    sp: "sensor.heizungskeller_auromatic_solar_speicherfuhler_2_unten",
+    pumpe: "binary_sensor.heizungskeller_auromatic_solar_kollektorpumpe",
+  };
+
+  const state = {
+    koll: 62.4,
+    sp: 48,
+    pumpe: true,
+    unavail: false,
+    span: 17,
+    on: 5,
+    off: 12,
+    needle: true,
+    limits: true,
+  };
+
+  const de1 = (n) => n.toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const de0 = (n) => n.toLocaleString("de-DE", { maximumFractionDigits: 0 });
+
+  const buildConfig = () => ({
+    type: "custom:gauge-flex-card",
+    entity: E.koll,
+    name: "Kollektor",
+    needle: state.needle,
+    show_limits: state.limits,
+    min: E.sp,
+    max: { entity: E.sp, offset: state.span },
+    segments: [
+      { from: 0, color: "lightgrey" },
+      {
+        from: {
+          entity: E.sp,
+          offset: { entity: E.pumpe, map: { on: state.on, off: state.off } },
+        },
+        color: "rgb(139, 195, 74)",
+      },
+    ],
+  });
+
+  const buildHass = () => ({
+    locale: { language: "de" },
+    states: {
+      [E.koll]: {
+        state: state.unavail ? "unavailable" : String(state.koll),
+        attributes: { unit_of_measurement: "°C", friendly_name: "Kollektor" },
+      },
+      [E.sp]: {
+        state: String(state.sp),
+        attributes: { unit_of_measurement: "°C", friendly_name: "Speicher unten" },
+      },
+      [E.pumpe]: { state: state.pumpe ? "on" : "off", attributes: {} },
+    },
+  });
+
+  const cards = ["tile-narrow", "tile-wide", "tile-dark"].map((id) => {
+    const host = document.getElementById(id);
+    const card = document.createElement("gauge-flex-card");
+    card.style.display = "block";
+    card.style.height = "100%";
+    host.appendChild(card);
+    return card;
+  });
+
+  let lastConfig = "";
+
+  const yamlEl = document.getElementById("yaml");
+  const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  const yaml = () => {
+    const lines = [
+      ["type", "custom:gauge-flex-card"],
+      ["entity", E.koll],
+      ["name", "Kollektor"],
+    ];
+    let out = lines.map(([k, v]) => `<span class="k">${k}</span>: ${esc(v)}`).join("\n");
+    out += `\n<span class="k">needle</span>: ${state.needle}`;
+    out += `\n<span class="k">show_limits</span>: ${state.limits}`;
+    out += `\n<span class="k">min</span>: ${E.sp}`;
+    out += `\n<span class="k">max</span>:\n  <span class="k">entity</span>: ${E.sp}\n  <span class="k">offset</span>: ${state.span}`;
+    out += `\n<span class="k">segments</span>:`;
+    out += `\n  - <span class="k">from</span>: 0\n    <span class="k">color</span>: lightgrey`;
+    out += `\n  - <span class="k">from</span>:\n      <span class="k">entity</span>: ${E.sp}`;
+    out += `\n      <span class="k">offset</span>:\n        <span class="k">entity</span>: ${E.pumpe}`;
+    out += `\n        <span class="k">map</span>:\n          <span class="k">"on"</span>: ${state.on}\n          <span class="k">"off"</span>: ${state.off}`;
+    out += `\n    <span class="k">color</span>: rgb(139, 195, 74)`;
+    out += `\n<span class="k">grid_options</span>:\n  <span class="k">columns</span>: 4\n  <span class="k">rows</span>: 2`;
+    return out;
+  };
+
+  const sync = () => {
+    const config = buildConfig();
+    const key = JSON.stringify(config);
+    if (key !== lastConfig) {
+      lastConfig = key;
+      cards.forEach((c) => c.setConfig(config));
+    }
+    const hass = buildHass();
+    cards.forEach((c) => (c.hass = hass));
+
+    const min = state.sp;
+    const max = state.sp + state.span;
+    const threshold = state.sp + (state.pumpe ? state.on : state.off);
+    const inZone = !state.unavail && state.koll >= threshold;
+
+    document.getElementById("out-min").innerHTML = de1(min) + '<span class="u">°C</span>';
+    document.getElementById("out-max").innerHTML = de1(max) + '<span class="u">°C</span>';
+    document.getElementById("out-threshold").innerHTML = de1(threshold) + '<span class="u">°C</span>';
+
+    const zone = document.getElementById("out-zone");
+    const label = state.unavail ? "nicht verfügbar" : inZone ? "Ertrag" : "zu kalt";
+    zone.style.color = state.unavail ? "var(--idle)" : inZone ? "#5b8f37" : "var(--idle)";
+    zone.lastElementChild.textContent = label;
+
+    document.getElementById("lbl-koll").textContent = de1(state.koll) + " °C";
+    document.getElementById("lbl-sp").textContent = de1(state.sp) + " °C";
+
+    yamlEl.innerHTML = yaml();
+  };
+
+  const bindRange = (id, key) => {
+    const el = document.getElementById(id);
+    el.addEventListener("input", () => {
+      state[key] = parseFloat(el.value);
+      sync();
+    });
+  };
+  bindRange("in-koll", "koll");
+  bindRange("in-sp", "sp");
+
+  const bindChip = (inputId, chipId, key) => {
+    const input = document.getElementById(inputId);
+    const chip = document.getElementById(chipId);
+    input.addEventListener("change", () => {
+      state[key] = input.checked;
+      chip.classList.toggle("on", input.checked);
+      sync();
+    });
+  };
+  bindChip("in-pumpe", "chip-pumpe", "pumpe");
+  bindChip("in-unavail", "chip-unavail", "unavail");
+  bindChip("in-needle", "chip-needle", "needle");
+  bindChip("in-limits", "chip-limits", "limits");
+
+  const bindNumber = (id, key) => {
+    const el = document.getElementById(id);
+    el.addEventListener("input", () => {
+      const v = parseFloat(el.value);
+      if (Number.isFinite(v)) {
+        state[key] = v;
+        sync();
+      }
+    });
+  };
+  bindNumber("in-span", "span");
+  bindNumber("in-on", "on");
+  bindNumber("in-off", "off");
+
+  const btn = document.getElementById("btn-copy");
+  btn.addEventListener("click", async () => {
+    const text = yamlEl.textContent;
+    try {
+      await navigator.clipboard.writeText(text);
+      btn.textContent = "Kopiert";
+    } catch (e) {
+      const r = document.createRange();
+      r.selectNodeContents(yamlEl);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(r);
+      btn.textContent = "Markiert — Strg/Cmd+C";
+    }
+    setTimeout(() => (btn.textContent = "YAML kopieren"), 1800);
+  });
+
+  sync();
+})();
+</script>
