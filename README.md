@@ -170,6 +170,7 @@ Bewusste Abweichungen:
 | `min`, `max`, `segments` dürfen dynamisch sein | der eigentliche Zweck dieser Karte |
 | `show_limits` beschriftet die Skalenenden | bei mitwandernden Grenzen sieht man sonst nicht, worauf sich die Nadel bezieht |
 | Die Breite wird zusätzlich durch die Kachelhöhe begrenzt | das Original skaliert nur über die Breite und wird in `rows: 2` abgeschnitten |
+| `getGridOptions()` meldet `rows: "auto"`, `min_rows: 2` | wie das Original: die Höhe ergibt sich aus dem Inhalt, eine feste Zeilenzahl wird ausgefüllt |
 | `precision`/`unit` überschreiben die HA-Formatierung | nur wenn gesetzt |
 
 ## Dynamische Werte

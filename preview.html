@@ -538,7 +538,7 @@ customElements.define("ha-card", class extends HTMLElement {
  * Lizenz: MIT
  */
 
-const CARD_VERSION = "1.2.0";
+const CARD_VERSION = "1.2.1";
 
 console.info(
   `%c GAUGE-FLEX-CARD %c ${CARD_VERSION} `,
@@ -554,6 +554,7 @@ console.info(
 const ARC_R = 40;
 const ARC_LENGTH = Math.PI * ARC_R;
 const BASE_ARC = "M -40 0 A 40 40 0 0 1 40 0";
+const GAUGE_MAX_WIDTH = 250;
 const NEEDLE_PATH = "M -34,-3 L -40,-1 A 1,1,0,0,0,-40,1 L -34,3 A 2,2,0,0,0,-34,-3 Z";
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
@@ -613,7 +614,10 @@ const collectTemplates = (obj, out) => {
  * Styles
  * ----------------------------------------------------------------------- */
 const STYLE = `
-  :host { display: block; }
+  :host {
+    display: block;
+    height: 100%;
+  }
   ha-card {
     height: 100%;
     overflow: hidden;
@@ -630,7 +634,7 @@ const STYLE = `
     position: relative;
     display: block;
     width: 100%;
-    max-width: 250px;
+    max-width: ${GAUGE_MAX_WIDTH}px;
   }
   svg.gauge { display: block; width: 100%; }
   .levels-base {
@@ -794,7 +798,9 @@ class GaugeFlexCard extends HTMLElement {
   }
 
   getGridOptions() {
-    return { columns: 6, rows: 2, min_columns: 3, min_rows: 2 };
+    // "auto" wie bei der Original-Karte: die Höhe ergibt sich aus dem Inhalt,
+    // eine feste Zeilenzahl in grid_options wird trotzdem ausgefüllt.
+    return { rows: "auto", columns: 6, min_rows: 2, min_columns: 3 };
   }
 
   // Ältere HA-Versionen (< 2024.11)
@@ -1041,7 +1047,7 @@ class GaugeFlexCard extends HTMLElement {
       this._fitGauge();
       this._rescaleText();
     });
-    this._ro.observe(this._el.card);
+    this._ro.observe(this);
   }
 
   /**
@@ -1051,11 +1057,13 @@ class GaugeFlexCard extends HTMLElement {
    */
   _fitGauge() {
     const { card, wrap, name } = this._el || {};
-    if (!card || !wrap || !card.clientHeight) return;
+    if (!card || !wrap || !this.clientHeight) return;
     const cs = getComputedStyle(card);
     const pad = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
-    const avail = card.clientHeight - pad - (name.offsetHeight || 0);
-    if (avail > 0) wrap.style.maxWidth = `min(250px, ${Math.max(60, Math.floor(avail / 0.55))}px)`;
+    // Höhe der Kachel, nicht der Karte: sonst hinge die Messung am Ergebnis.
+    const avail = this.clientHeight - pad - (name.offsetHeight || 0);
+    const cap = Math.floor(avail / 0.55);
+    wrap.style.maxWidth = cap >= GAUGE_MAX_WIDTH ? `${GAUGE_MAX_WIDTH}px` : `${Math.max(60, cap)}px`;
   }
 
   /** viewBox der Text-SVG auf die Textausdehnung setzen – wie _rescaleSvg im Original. */

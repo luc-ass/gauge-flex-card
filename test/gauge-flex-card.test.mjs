@@ -147,5 +147,13 @@ w.document.body.addEventListener("hass-more-info", (e) => (evt = e.detail));
 c1.shadowRoot.getElementById("card").dispatchEvent(new w.MouseEvent("click", { bubbles: true, composed: true }));
 check("Tap löst more-info aus", evt && evt.entityId === "sensor.kollektor", JSON.stringify(evt));
 
+// ---- 8: Kachelverhalten wie das Original ----
+const css = c1.shadowRoot.querySelector("style").textContent;
+check("Host nimmt die Kachelhöhe an", /:host\s*\{[^}]*height:\s*100%/.test(css), "height:100% fehlt auf :host");
+check("ha-card füllt den Host", /ha-card\s*\{[^}]*height:\s*100%/.test(css));
+const grid = c1.getGridOptions();
+check("Standardhöhe ist auto wie beim Original", grid.rows === "auto", JSON.stringify(grid));
+check("Mindestgröße gesetzt", grid.min_rows === 2 && grid.min_columns === 3, JSON.stringify(grid));
+
 console.log(fails ? `\n${fails} Test(s) fehlgeschlagen` : "\nAlle Tests bestanden");
 process.exit(fails ? 1 : 0);

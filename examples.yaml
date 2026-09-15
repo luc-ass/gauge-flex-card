@@ -116,3 +116,57 @@
         ${parseFloat(states['sensor.heizungskeller_auromatic_solar_speicherfuhler_2_unten'].state)
         + (states['binary_sensor.heizungskeller_auromatic_solar_kollektorpumpe'].state === 'on' ? 5 : 12)}
       color: rgb(139, 195, 74)
+
+# 8) Direktvergleich als zwei eigenständige Kacheln (ohne horizontal-stack).
+#    Beide mit columns: 4 nebeneinander in dieselbe Sektion legen.
+- type: custom:config-template-card
+  entities:
+    - sensor.heizungskeller_auromatic_solar_kollektor
+    - sensor.heizungskeller_auromatic_solar_speicherfuhler_2_unten
+    - binary_sensor.heizungskeller_auromatic_solar_kollektorpumpe
+  card:
+    type: gauge
+    entity: sensor.heizungskeller_auromatic_solar_kollektor
+    name: Original
+    needle: true
+    min: >-
+      ${parseFloat(states['sensor.heizungskeller_auromatic_solar_speicherfuhler_2_unten'].state)}
+    max: >-
+      ${parseFloat(states['sensor.heizungskeller_auromatic_solar_speicherfuhler_2_unten'].state)
+      + 17}
+    segments:
+      - from: 0
+        color: lightgrey
+      - from: >-
+          ${parseFloat(states['sensor.heizungskeller_auromatic_solar_speicherfuhler_2_unten'].state)
+          +
+          (states['binary_sensor.heizungskeller_auromatic_solar_kollektorpumpe'].state
+          === 'on' ? 5 : 12)}
+        color: rgb(139, 195, 74)
+  grid_options:
+    columns: 4
+    rows: 2
+
+- type: custom:gauge-flex-card
+  entity: sensor.heizungskeller_auromatic_solar_kollektor
+  name: Gauge Flex
+  needle: true
+  show_limits: false
+  min: sensor.heizungskeller_auromatic_solar_speicherfuhler_2_unten
+  max:
+    entity: sensor.heizungskeller_auromatic_solar_speicherfuhler_2_unten
+    offset: 17
+  segments:
+    - from: 0
+      color: lightgrey
+    - from:
+        entity: sensor.heizungskeller_auromatic_solar_speicherfuhler_2_unten
+        offset:
+          entity: binary_sensor.heizungskeller_auromatic_solar_kollektorpumpe
+          map:
+            "on": 5
+            "off": 12
+      color: rgb(139, 195, 74)
+  grid_options:
+    columns: 4
+    rows: 2
